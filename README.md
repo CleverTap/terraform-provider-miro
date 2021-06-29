@@ -141,7 +141,7 @@ output "user2" {
 * The Only Role can be updated for any team member.
 * The role of the last administrator for your team cannot be changed.
 * ```non_team``` users can't be managed.
-*REFERENCE: ``` https://community.miro.com/developer-platform-and-apis-57/how-to-get-email-address-of-non-team-role-member-via-the-api-823 ```
+* REFERENCE: ``` https://community.miro.com/developer-platform-and-apis-57/how-to-get-email-address-of-non-team-role-member-via-the-api-823 ```
 ```
 Best answer by farbodsaraf
 Hi Richard,
