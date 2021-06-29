@@ -107,6 +107,7 @@ func resourceUserCreate(ctx context.Context,d *schema.ResourceData, m interface{
 	if err != nil {
 		return diag.FromErr(err)
 	}
+	d.SetId(email+":"+team_id)
 	resourceUserRead(ctx,d,m)
 	return diags
 }
@@ -114,8 +115,13 @@ func resourceUserCreate(ctx context.Context,d *schema.ResourceData, m interface{
 func resourceUserRead(ctx context.Context,d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	apiClient 	:= m.(*client.Client)
-	email 		:= d.Get("email").(string)
-	team_id		:= d.Get("team_id").(string)
+	part1, part2, err:= resourceUserParseId(d.Id())
+	if err!= nil {
+		return diag.FromErr(err)
+	}
+	d.Set("team_id", part2)
+	email     := part1
+	team_id		:= part2
 	retryErr := resource.Retry(2*time.Second, func() *resource.RetryError {
 		resp, err := apiClient.GetUser(email, team_id)
 		if err != nil {
@@ -124,7 +130,6 @@ func resourceUserRead(ctx context.Context,d *schema.ResourceData, m interface{})
 			}
 			return resource.NonRetryableError(err)
 		}
-		d.SetId(resp.Email)
 		d.Set("type",resp.Type)
 		d.Set("email",resp.Email)
 		d.Set("name",resp.Name)
@@ -155,12 +160,24 @@ func resourceUserUpdate(ctx context.Context,d *schema.ResourceData, m interface{
 			Summary:  "User not allowed to change email",
 			Detail:   "User not allowed to change email",
 		})
+	}
+	if d.HasChange("team_id") {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Error,
+			Summary:  "User not allowed to change Team ID",
+			Detail:   "User not allowed to change Team ID",
+		})
+	}
+	if diags.HasError() {
 		return diags
 	}
-	email 	:= d.Get("email").(string)
-	role 	:= d.Get("role").(string)
-	team_id	:= d.Get("team_id").(string)
-	var err error
+	part1, part2, err:= resourceUserParseId(d.Id())
+	if err!= nil {
+		return diag.FromErr(err)
+	}
+	email     := part1
+	team_id	  := part2
+	role 	  := d.Get("role").(string)
 	retryErr := resource.Retry(2*time.Second, func() *resource.RetryError {
 		if err = apiClient.UpdateUser(email, role,  team_id); err != nil {
 			if apiClient.IsRetry(err) {
@@ -183,17 +200,12 @@ func resourceUserUpdate(ctx context.Context,d *schema.ResourceData, m interface{
 func resourceUserDelete(ctx context.Context,d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	apiClient := m.(*client.Client)
-	if d.HasChange("email") {
-		diags = append(diags, diag.Diagnostic{
-			Severity: diag.Error,
-			Summary:  "User not allowed to change email",
-			Detail:   "User not allowed to change email",
-		})
-		return diags
+	part1, part2, err:= resourceUserParseId(d.Id())
+	if err!= nil {
+		return diag.FromErr(err)
 	}
-	email 	:= d.Id()
-	team_id	:= d.Get("team_id").(string)
-	var err error
+	email     := part1
+	team_id	  := part2
 	retryErr := resource.Retry(2*time.Second, func() *resource.RetryError {
 		if err = apiClient.DeleteUser(email, team_id); err != nil {
 			if apiClient.IsRetry(err) {
@@ -220,10 +232,9 @@ func resourceUserImporter(ctx context.Context, d *schema.ResourceData, m interfa
 	if err!= nil {
 		return []*schema.ResourceData{d}, err
 	}
-	d.SetId(part1)
-	d.Set("team_id", part2)
-	email     := d.Id()
-	team_id		:= d.Get("team_id").(string)
+	d.Set("team_id",part2)
+	email     := part1
+	team_id	  := part2
 	resp, err := apiClient.GetUser(email, team_id)
 	if err != nil {
 		return nil, err
@@ -245,5 +256,7 @@ func resourceUserParseId(id string) (string, string, error) {
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 	  return "", "", fmt.Errorf("unexpected format of ID (%s), expected attribute1:attribute2", id)
 	}
+	parts[0] = strings.Trim(parts[0]," ")
+	parts[1] = strings.Trim(parts[1]," ")
 	return parts[0], parts[1], nil
   }

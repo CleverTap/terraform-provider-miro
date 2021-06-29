@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"strings"
+	"strconv"
 )
 
 type createUserRequest struct {
@@ -54,16 +55,24 @@ type listAllUserResponce struct {
 }
 
 type getUserStruct struct {
-	Type	string	`json:"type"`
-	ID		string	`json:"id"`
-	Name	string	`json:"name"`
+	Type		string	`json:"type"`
+	ID			string	`json:"id"`
+	Name		string	`json:"name"`
 	Industry	string	`json:"industry"`
 	CreatedAt	string	`json:"createdAt"`
 	Company		string	`json:"company"`
-	Role	string	`json:"role"`
+	Role		string	`json:"role"`
 	TeamName	string
-	Email	string	`json:"email"`
-	State	string	`json:"state"`
+	Email		string	`json:"email"`
+	State		string	`json:"state"`
+}
+
+type errResponce struct {
+	StatusCode	int		`json:"status"`
+	Code		string	`json:"code"`
+	Message		string	`json:"message"`
+	//Context		string	`json:"context"`
+	Type		string	`json:"type"`
 }
 
 type update struct {
@@ -78,7 +87,7 @@ func init() {
 	Errors[400] = "Bad Request, StatusCode = 400"
 	Errors[401] = "Unautharized Access, StatusCode = 401"
 	Errors[403] = "insufficientPermissions, StatusCode = 403"
-	Errors[404] = "User Not Found, StatusCode = 404"
+	Errors[404] = "The requested resource is not found, StatusCode = 404"
 	Errors[409] = "User Already Exist, StatusCode = 409"
 	Errors[429] = "User has sent too Many Requests, StatusCode = 429"
 	Errors[500] = "Internal Server Error = 500"
@@ -114,8 +123,17 @@ func (c *Client) handleRequest(httpMethod string,url string, body []byte) (respo
 	if err != nil {
 		return 
 	}
-	if responce.StatusCode < 200 || responce.StatusCode >= 299 {
-		return responce, fmt.Errorf("Error : %v",Errors[responce.StatusCode])
+	if responce.StatusCode < 200 || responce.StatusCode > 299 {
+		var errorResponce errResponce
+		resp, err := ioutil.ReadAll(responce.Body)
+		if err != nil {
+			return responce, err
+		}
+		err = json.Unmarshal(resp, &errorResponce)
+		if err != nil {
+			return responce, err
+		}
+		return responce, fmt.Errorf("Status Code : "+strconv.Itoa(responce.StatusCode)+", "+errorResponce.Message)
 	}
 	return
 }
@@ -148,7 +166,6 @@ func (c *Client) getAllTeamMembers(team_id string) ([] data, []string, error) {
 	var ResponceStruct listAllUserResponce
 	url := fmt.Sprintf("https://api.miro.com/v1/teams/%s/user-connections?limit=100&offset=0", team_id)
 	resp,err := c.handleRequest(http.MethodGet, url, nil)
-
 	if err != nil {
 		return ResponceStruct.Data,list,err
 	}
@@ -161,7 +178,9 @@ func (c *Client) getAllTeamMembers(team_id string) ([] data, []string, error) {
 		return ResponceStruct.Data,list,err
 	}
 	for a := range(ResponceStruct.Data) {
-		list = append(list, (ResponceStruct.Data[a].User.ID))
+		if ResponceStruct.Data[a].Role != "non_team" {
+			list = append(list, (ResponceStruct.Data[a].User.ID))
+		}
 	}
 	return ResponceStruct.Data,list,err
 }
@@ -231,9 +250,21 @@ func (c *Client) UpdateUser(email string, role string, team_id string) (error) {
 	if err != nil {
 		return err
 	}
-	resp ,err := c.handleRequest(http.MethodPatch, url, body)
-	if resp.StatusCode != 200 {
-		return  fmt.Errorf("%s",Errors[resp.StatusCode])
+	responce ,err := c.handleRequest(http.MethodPatch, url, body)
+	if err != nil {
+		return err
+	}
+	if responce.StatusCode < 200 || responce.StatusCode > 299 {
+		var errorResponce errResponce
+		resp, err := ioutil.ReadAll(responce.Body)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(resp, &errorResponce)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("Status Code : "+strconv.Itoa(responce.StatusCode)+", "+errorResponce.Message)
 	}
 	return err
 }
