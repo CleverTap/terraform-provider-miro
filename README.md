@@ -133,14 +133,27 @@ output "user2" {
 * `miro_token` (Required, String) - Miro provides an access token for authentication which we have already seen how to get access_token.
 * `miro_team_id` (Required, String) - It's an ID associated with for team, It can get from the profile page.
 * `email` (Required, String) - Email is the user's mail id who is a part of the team or will be a part of the team.
-* `role` (Optional, string) - Role is the user's role in the team it can be admin or member.
+* `role` (Optional, string) - Role is the user's role in the team it can be ```admin``` or ```member```.
  
 ## Exceptions
  
 * New user's role will be a member by default but it can be changed later.
 * The Only Role can be updated for any team member.
 * The role of the last administrator for your team cannot be changed.
-* ```non_team``` users can't be imported.
+* ```non_team``` users can't be managed.
+*REFERENCE: ``` https://community.miro.com/developer-platform-and-apis-57/how-to-get-email-address-of-non-team-role-member-via-the-api-823 ```
+```
+Best answer by farbodsaraf
+Hi Richard,
+
+ 
+
+This is not currently possible through APIs and we have no plans to offer it in the future, simply because it violates the privacy. Since the external user is not part of your team, you should not be able to retrieve all the information about the user through the API.
+
+ 
+
+Please let me know if you have any other questions. Thanks!
+```
 * If the removed user owns any boards or projects, they also will be removed.
 In case you want to save them, you need to reassign ownership first.
 * Last team member(which would be admin) can't be removed.
